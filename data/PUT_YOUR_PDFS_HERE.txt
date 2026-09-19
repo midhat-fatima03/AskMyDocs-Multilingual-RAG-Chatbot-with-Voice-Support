@@ -1,0 +1,9 @@
+Put your college PDF files in this folder before running ingest.py.
+
+Examples:
+- syllabus.pdf
+- exam_rules.pdf
+- placement_brochure.pdf
+
+You can rename or add as many PDFs as you like — ingest.py picks up
+every .pdf file in this folder automatically.

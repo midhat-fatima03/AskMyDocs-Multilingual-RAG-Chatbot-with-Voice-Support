@@ -1,0 +1,15 @@
+# Secrets — never commit your real API key
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Vector store / generated data (CLI workflow only — app.py doesn't need this)
+vectorstore/
+
+# OS junk
+.DS_Store
+Thumbs.db
