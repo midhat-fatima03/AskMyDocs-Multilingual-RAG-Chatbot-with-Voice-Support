@@ -30,8 +30,9 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_groq import ChatGroq
-from langchain.chains import RetrievalQA
-from langchain.prompts import PromptTemplate
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.chains import create_retrieval_chain
+from langchain_core.prompts import ChatPromptTemplate
 
 from groq import Groq as GroqClient  # direct client, used for Whisper transcription
 from gtts import gTTS
@@ -49,7 +50,6 @@ LANGUAGE_OPTIONS = {
     "Kannada": "Kannada",
 }
 GTTS_LANG_CODES = {"English": "en", "Hindi": "hi", "Kannada": "kn"}
-
 PROMPT_TEMPLATE = """You are a helpful assistant answering questions using
 only the context below, which comes from documents the user has uploaded.
 
@@ -60,9 +60,9 @@ only the context below, which comes from documents the user has uploaded.
 - {language_instruction}
 
 Context:
-{context}
+{{context}}
 
-Question: {question}
+Question: {{input}}
 
 Answer:"""
 
@@ -124,7 +124,6 @@ def process_uploaded_pdfs(uploaded_files):
 
 
 def build_qa_chain(vectorstore, language_choice):
-    """Build (or rebuild) the QA chain, baking in the chosen answer language."""
     if LANGUAGE_OPTIONS[language_choice] is None:
         language_instruction = "Answer in the same language the question was asked in."
     else:
@@ -135,18 +134,11 @@ def build_qa_chain(vectorstore, language_choice):
 
     retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
     llm = get_llm()
-    prompt = PromptTemplate(
-        template=PROMPT_TEMPLATE,
-        input_variables=["context", "question"],
-        partial_variables={"language_instruction": language_instruction},
-    )
-    return RetrievalQA.from_chain_type(
-        llm=llm,
-        retriever=retriever,
-        chain_type="stuff",
-        chain_type_kwargs={"prompt": prompt},
-        return_source_documents=True,
-    )
+    filled_template = PROMPT_TEMPLATE.format(language_instruction=language_instruction)
+    prompt = ChatPromptTemplate.from_template(filled_template)
+
+    question_answer_chain = create_stuff_documents_chain(llm, prompt)
+    return create_retrieval_chain(retriever, question_answer_chain)
 
 
 # ---------------- Feature: quiz generation ----------------
@@ -313,10 +305,9 @@ with tab_chat:
 
         with st.chat_message("assistant"):
             with st.spinner("Searching documents and generating answer..."):
-                result = st.session_state.qa_chain.invoke({"query": question})
-                answer = result["result"]
-                sources = result.get("source_documents", [])
-                st.markdown(answer)
+                result = st.session_state.qa_chain.invoke({"input": question})
+                answer = result["answer"]
+                sources = result.get("context", [])
 
                 audio_bytes = None
                 if voice_output_enabled:
