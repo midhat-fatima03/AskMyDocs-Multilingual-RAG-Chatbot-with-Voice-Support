@@ -9,3 +9,4 @@ streamlit>=1.40.1
 python-dotenv>=1.0.1
 groq>=0.13.0
 gTTS>=2.5.4
+langchain-text-splitters>=0.3.0
